@@ -1,4 +1,5 @@
 using System.Data;
+using System.Linq;
 using System.IO;
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
@@ -52,7 +53,8 @@ namespace importExceltoDB
             xlsxName = XLSXFile;
             dt = new DataTable();
         }
-        private void readFromExcel()
+        /*
+        private DataTable readFromExcel()
         {
             using (FileStream fs = new FileStream(xlsxName, FileMode.Open, FileAccess.Read))
             {
@@ -63,26 +65,39 @@ namespace importExceltoDB
                     ds.Tables[0]
             }
         }
-        private async Task<DataTable> readFromMySQL()
+        */
+        private DataTable readFromMySQL()
         {
+            DataTable dt = new DataTable();
             string MySqlCmd = "Select OLD_IP , NEW_IP , NEW_MASK , NEW_GW , NEW_DNS from IP_RELATIONSHIP";
-            using (MySqlDataAdapter dbAdapter = new MySqlDataAdapter(MySqlCmd,String.Join(';', connString)))
-            { 
-                dbAdapter.Open();
+            using (MySqlDataAdapter dbAdapter = new MySqlDataAdapter(MySqlCmd, String.Join(';', connString)))
+            {
+                dbAdapter.Fill(dt);
             }
+            return dt;
         }
-        private void writeToExcel()
+        private void writeToExcel(DataTable dt)
         {
             using (FileStream fs = new FileStream(xlsxName, FileMode.Create, FileAccess.Write))
             {
             }
         }
-        private void writeToMySQL()
+        private async void writeToMySQL(DataTable dt)
         {
-            using (MySqlConnection MySqlConn = new MySqlConnection(String.Join(';', connString))
+            using (MySqlConnection MySqlConn = new MySqlConnection(String.Join(';', connString) + ";AllowLoadLocalInfile=true"))
             {
-
+                await MySqlConn.OpenAsync();
+                MySqlBulkCopy MySqlBC = new MySqlBulkCopy(MySqlConn);
+                MySqlBC.DestinationTableName = "IP_RELATIONSHIP";
+                MySqlBulkCopyResult result = await MySqlBC.WriteToServerAsync(dt);
+                if (result.Warnings.Count != 0)
+                {
+                    using (StreamWriter sw = new StreamWriter(logName))
+                    foreach ( var w in result.Warnings )
+                        sw.WriteLine(w.ToString());
+                }
             }
         }
     }
+}
 }
