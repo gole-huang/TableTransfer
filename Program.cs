@@ -6,7 +6,7 @@ namespace TableTransfer
         static void Main(string[] args)
         {
             TableTransfer tt = new TableTransfer("db.cfg","IP.xlsx");
-            tt.ExcelToMySQL();
+            tt.MySQLToExcel();
         }
     }
 }

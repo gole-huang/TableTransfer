@@ -75,9 +75,9 @@ namespace TableTransfer
                     return iCell.CellFormula;
             }
         }
-        private async void readFromExcel()
+        private void readFromExcel()
         {
-            using (StreamWriter sw = new StreamWriter(logName))
+            using (StreamWriter sw = new StreamWriter(logName, true))
             {
                 try
                 {
@@ -93,9 +93,9 @@ namespace TableTransfer
                                 dt.Columns.Add(new DataColumn("Column" + i.ToString()));
                             dt.Columns.Add(new DataColumn(GetValueType(iRow.GetCell(i)).ToString()));
                         }
-                        await sw.WriteLineAsync(iRow.LastCellNum.ToString() + " columns added.");
+                        sw.WriteLine(iRow.LastCellNum.ToString() + " cells had been readed.");
                         //为DataTable添加表内容：
-                        for (int i = iSheet.FirstRowNum + 1; i < iSheet.LastRowNum; i++)
+                        for (int i = iSheet.FirstRowNum + 1; i <= iSheet.LastRowNum; i++)
                         {
 
                             iRow = iSheet.GetRow(i);
@@ -105,45 +105,44 @@ namespace TableTransfer
                             dt.Rows.Add(dr);
                         }
                         wb.Close();
-                        await sw.WriteLineAsync(iSheet.LastRowNum.ToString() + " rows added.");
+                        sw.WriteLine(iSheet.LastRowNum.ToString() + " rows had been readed.");
                     }
                 }
                 catch (Exception e)
                 {
-                    await sw.WriteLineAsync("readFromExcel(): " + e.ToString());
+                    sw.WriteLine("readFromExcel(): " + e.ToString());
                 }
 
             }
         }
-        private async void readFromMySQL()
+        private void readFromMySQL()
         {
             string MySqlCmd = "Select OLD_IP , NEW_IP , NEW_MASK , NEW_GW , NEW_DNS from IP_RELATIONSHIP";
-            using (StreamWriter sw = new StreamWriter(logName))
+            using (StreamWriter sw = new StreamWriter(logName, true))
             {
                 try
                 {
-                    using (MySqlDataAdapter dbAdapter = new MySqlDataAdapter(MySqlCmd, String.Join(';', connString)))
+                    using (MySqlDataAdapter dbAdapter = new MySqlDataAdapter(MySqlCmd, String.Join(";", connString)))
                     {
-                        await sw.WriteLineAsync("From MySQL read " + dbAdapter.Fill(dt) + " lines.");
+                        sw.WriteLine("From MySQL read " + dbAdapter.Fill(dt) + " lines.");
                     }
                 }
                 catch (Exception e)
                 {
-                    await sw.WriteLineAsync("readFromMySQL(): " + e.ToString());
+                    sw.WriteLine("readFromMySQL(): " + e.ToString());
                 }
             }
         }
-        private async void writeToExcel()
+        private void writeToExcel()
         {
-            using (FileStream fs = new FileStream(xlsxName, FileMode.Create, FileAccess.Write))
-            {
-                using (StreamWriter sw = new StreamWriter(logName))
+            using (FileStream fs = new FileStream(xlsxName, FileMode.OpenOrCreate, FileAccess.Write))
+            {  
+                using (StreamWriter sw = new StreamWriter(logName, true))
                 {
                     try
                     {
-                        IWorkbook wb = new XSSFWorkbook(fs);
-                        ISheet iSheet = wb.CreateSheet("IP_RELATIONSHIP");
-                        //为Excel添加表头；
+                        IWorkbook wb = new XSSFWorkbook();
+                        ISheet iSheet = wb.CreateSheet("IP_RELATIONSHIP");  //为Excel添加表头；
                         IRow iRow = iSheet.CreateRow(0);
                         for (int i = 0; i < dt.Columns.Count; i++)
                         {
@@ -158,49 +157,50 @@ namespace TableTransfer
                                 iRow.CreateCell(j).SetCellValue(dt.Rows[i][j].ToString());  //只能实现文本类型；
                             }
                         }
+                        wb.Write(fs);
                         wb.Close();
                     }
                     catch (Exception e)
                     {
-                        await sw.WriteLineAsync("writeToExcel(): " + e.ToString());
+                        sw.WriteLine("writeToExcel(): " + e.ToString());
                     }
                 }
             }
         }
-        private async void writeToMySQL()
+        private void writeToMySQL()
         {
-            using (MySqlConnection MySqlConn = new MySqlConnection(String.Join(';', connString) + ";AllowLoadLocalInfile=true"))
+            using (MySqlConnection MySqlConn = new MySqlConnection(String.Join(";", connString) + ";AllowLoadLocalInfile=true"))
             {
-                using (StreamWriter sw = new StreamWriter(logName))
+                using (StreamWriter sw = new StreamWriter(logName, true))
                 {
                     try
                     {
-                        await MySqlConn.OpenAsync();
+                        MySqlConn.Open();
                         MySqlBulkCopy MySqlBC = new MySqlBulkCopy(MySqlConn);
                         MySqlBC.DestinationTableName = "IP_RELATIONSHIP";
-                        MySqlBulkCopyResult result = await MySqlBC.WriteToServerAsync(dt);
+                        MySqlBulkCopyResult result = MySqlBC.WriteToServer(dt);
                         if (result.Warnings.Count != 0)
                         {
                             foreach (var w in result.Warnings)
                             {
-                                await sw.WriteLineAsync(w.ToString());
+                                sw.WriteLine(w.ToString());
                             }
                         }
-                        await sw.WriteLineAsync("To MySQL write " + result.RowsInserted + " lines.");
+                        sw.WriteLine(result.RowsInserted + " lines had been written to MySQL.");
                     }
                     catch (Exception e)
                     {
-                        await sw.WriteLineAsync("writeToMySQL(): " + e.ToString());
+                        sw.WriteLine("writeToMySQL(): " + e.ToString());
                     }
                 }
             }
         }
-        public void MySQLToExcel()
+        public void ExcelToMySQL()
         {
             readFromExcel();
             writeToMySQL();
         }
-        public void ExcelToMySQL()
+        public void MySQLToExcel()
         {
             readFromMySQL();
             writeToExcel();
