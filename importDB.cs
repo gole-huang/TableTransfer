@@ -73,17 +73,32 @@ namespace importExceltoDB
             }
         }
         /**/
-        private async DataTable readFromExcel()
+        private DataTable readFromExcel()
         {
             DataTable dt = new DataTable();
             using (FileStream fs = new FileStream(xlsxName, FileMode.Open, FileAccess.Read))
             {
                 IWorkbook wb = new XSSFWorkbook(fs);
                 ISheet iSheet = wb.GetSheetAt(0);
+                //为DataTable添加表头：
                 IRow iRow = iSheet.GetRow(iSheet.FirstRowNum);
                 for (int i = 0; i < iRow.LastCellNum; i++)
+                {
+                    if (GetValueType(iRow.GetCell(i)) == null )
+                        dt.Columns.Add(new DataColumn("Column"+i.ToString()));
                     dt.Columns.Add(new DataColumn(GetValueType(iRow.GetCell(i)).ToString()));
+                }
+                //为DataTable添加表内容：
+                for (int i = iSheet.FirstRowNum + 1 ; i < iSheet.LastRowNum ; i++)
+                {
+                    iRow = iSheet.GetRow(i);
+                    DataRow dr = dt.NewRow();
+                    for (int j = 0 ; j < iRow.LastCellNum ; j++)
+                        dr[j] = GetValueType(iRow.GetCell(j));
+                    dt.Rows.Add(dr);
+                }
             }
+            return dt;
         }
         private DataTable readFromMySQL()
         {
