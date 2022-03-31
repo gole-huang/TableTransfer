@@ -75,46 +75,63 @@ namespace TableTransfer
                     return iCell.CellFormula;
             }
         }
-        private DataTable readFromExcel()
+        private async void readFromExcel()
         {
-            DataTable dt = new DataTable();
-            using (FileStream fs = new FileStream(xlsxName, FileMode.Open, FileAccess.Read))
+            using (StreamWriter sw = new StreamWriter(logName))
             {
-                IWorkbook wb = new XSSFWorkbook(fs);
-                ISheet iSheet = wb.GetSheetAt(0);
-                //为DataTable添加表头：
-                IRow iRow = iSheet.GetRow(iSheet.FirstRowNum);
-                for (int i = 0; i < iRow.LastCellNum; i++)
+                try
                 {
-                    if (GetValueType(iRow.GetCell(i)) == null)
-                        dt.Columns.Add(new DataColumn("Column" + i.ToString()));
-                    dt.Columns.Add(new DataColumn(GetValueType(iRow.GetCell(i)).ToString()));
+                    using (FileStream fs = new FileStream(xlsxName, FileMode.Open, FileAccess.Read))
+                    {
+                        IWorkbook wb = new XSSFWorkbook(fs);
+                        ISheet iSheet = wb.GetSheetAt(0);
+                        //为DataTable添加表头：
+                        IRow iRow = iSheet.GetRow(iSheet.FirstRowNum);
+                        for (int i = 0; i < iRow.LastCellNum; i++)
+                        {
+                            if (GetValueType(iRow.GetCell(i)) == null)
+                                dt.Columns.Add(new DataColumn("Column" + i.ToString()));
+                            dt.Columns.Add(new DataColumn(GetValueType(iRow.GetCell(i)).ToString()));
+                        }
+                        await sw.WriteLineAsync(iRow.LastCellNum.ToString() + " columns added.");
+                        //为DataTable添加表内容：
+                        for (int i = iSheet.FirstRowNum + 1; i < iSheet.LastRowNum; i++)
+                        {
+
+                            iRow = iSheet.GetRow(i);
+                            DataRow dr = dt.NewRow();
+                            for (int j = 0; j < iRow.LastCellNum; j++)
+                                dr[j] = GetValueType(iRow.GetCell(j));
+                            dt.Rows.Add(dr);
+                        }
+                        wb.Close();
+                        await sw.WriteLineAsync(iSheet.LastRowNum.ToString() + " rows added.");
+                    }
                 }
-                //为DataTable添加表内容：
-                for (int i = iSheet.FirstRowNum + 1; i < iSheet.LastRowNum; i++)
+                catch (Exception e)
                 {
-                    iRow = iSheet.GetRow(i);
-                    DataRow dr = dt.NewRow();
-                    for (int j = 0; j < iRow.LastCellNum; j++)
-                        dr[j] = GetValueType(iRow.GetCell(j));
-                    dt.Rows.Add(dr);
+                    await sw.WriteLineAsync("readFromExcel(): " + e.ToString());
                 }
-                wb.Close();
+
             }
-            return dt;
         }
-        private DataTable readFromMySQL()
+        private async void readFromMySQL()
         {
-            DataTable dt = new DataTable();
             string MySqlCmd = "Select OLD_IP , NEW_IP , NEW_MASK , NEW_GW , NEW_DNS from IP_RELATIONSHIP";
-            using (MySqlDataAdapter dbAdapter = new MySqlDataAdapter(MySqlCmd, String.Join(';', connString)))
+            using (StreamWriter sw = new StreamWriter(logName))
             {
-                using (StreamWriter sw = new StreamWriter(logName))
+                try
                 {
-                    sw.WriteLine("From MySQL read " + dbAdapter.Fill(dt) + " lines.");
+                    using (MySqlDataAdapter dbAdapter = new MySqlDataAdapter(MySqlCmd, String.Join(';', connString)))
+                    {
+                        await sw.WriteLineAsync("From MySQL read " + dbAdapter.Fill(dt) + " lines.");
+                    }
+                }
+                catch (Exception e)
+                {
+                    await sw.WriteLineAsync("readFromMySQL(): " + e.ToString());
                 }
             }
-            return dt;
         }
         private async void writeToExcel()
         {
@@ -145,7 +162,7 @@ namespace TableTransfer
                     }
                     catch (Exception e)
                     {
-                        await sw.WriteLineAsync(e.ToString());
+                        await sw.WriteLineAsync("writeToExcel(): " + e.ToString());
                     }
                 }
             }
@@ -173,10 +190,20 @@ namespace TableTransfer
                     }
                     catch (Exception e)
                     {
-                        await sw.WriteLineAsync(e.ToString());
+                        await sw.WriteLineAsync("writeToMySQL(): " + e.ToString());
                     }
                 }
             }
+        }
+        public void MySQLToExcel()
+        {
+            readFromExcel();
+            writeToMySQL();
+        }
+        public void ExcelToMySQL()
+        {
+            readFromMySQL();
+            writeToExcel();
         }
     }
 }
