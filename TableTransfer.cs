@@ -1,11 +1,15 @@
+using System;
 using System.Data;
-using NPOI.SS.UserModel;
-using NPOI.XSSF.UserModel;
+using System.IO;
+
 using MySqlConnector;
 
-namespace importExceltoDB
+using NPOI.SS.UserModel;
+using NPOI.XSSF.UserModel;
+
+namespace TableTransfer
 {
-    public class importDB
+    public class TableTransfer
     {
         private const int DB_Addr = 0;
         private const int DB_Port = 1;
@@ -13,12 +17,11 @@ namespace importExceltoDB
         private const int DB_pwd = 3;
         private const int DB_Database = 4;
         private string cfgName;    //配置文件；
-        private const string logName = "import.log"; //访问日志；
+        private const string logName = "OP.log"; //访问日志；
         private string xlsxName; //Excel文件名；
         private string[] connString = new string[5]; //MySQL连接字符串；
         private DataTable dt;
-
-        public importDB(string CFGFile, string XLSXFile)
+        public TableTransfer(string CFGFile, string XLSXFile)
         {
             cfgName = CFGFile;
             using (StreamReader sr = new StreamReader(cfgName))
@@ -72,7 +75,6 @@ namespace importExceltoDB
                     return iCell.CellFormula;
             }
         }
-        /**/
         private DataTable readFromExcel()
         {
             DataTable dt = new DataTable();
@@ -84,19 +86,20 @@ namespace importExceltoDB
                 IRow iRow = iSheet.GetRow(iSheet.FirstRowNum);
                 for (int i = 0; i < iRow.LastCellNum; i++)
                 {
-                    if (GetValueType(iRow.GetCell(i)) == null )
-                        dt.Columns.Add(new DataColumn("Column"+i.ToString()));
+                    if (GetValueType(iRow.GetCell(i)) == null)
+                        dt.Columns.Add(new DataColumn("Column" + i.ToString()));
                     dt.Columns.Add(new DataColumn(GetValueType(iRow.GetCell(i)).ToString()));
                 }
                 //为DataTable添加表内容：
-                for (int i = iSheet.FirstRowNum + 1 ; i < iSheet.LastRowNum ; i++)
+                for (int i = iSheet.FirstRowNum + 1; i < iSheet.LastRowNum; i++)
                 {
                     iRow = iSheet.GetRow(i);
                     DataRow dr = dt.NewRow();
-                    for (int j = 0 ; j < iRow.LastCellNum ; j++)
+                    for (int j = 0; j < iRow.LastCellNum; j++)
                         dr[j] = GetValueType(iRow.GetCell(j));
                     dt.Rows.Add(dr);
                 }
+                wb.Close();
             }
             return dt;
         }
@@ -113,28 +116,65 @@ namespace importExceltoDB
             }
             return dt;
         }
-        private void writeToExcel(DataTable dt)
+        private async void writeToExcel()
         {
             using (FileStream fs = new FileStream(xlsxName, FileMode.Create, FileAccess.Write))
             {
+                using (StreamWriter sw = new StreamWriter(logName))
+                {
+                    try
+                    {
+                        IWorkbook wb = new XSSFWorkbook(fs);
+                        ISheet iSheet = wb.CreateSheet("IP_RELATIONSHIP");
+                        //为Excel添加表头；
+                        IRow iRow = iSheet.CreateRow(0);
+                        for (int i = 0; i < dt.Columns.Count; i++)
+                        {
+                            iRow.CreateCell(i).SetCellValue(dt.Columns[i].ToString());
+                        }
+                        //为Excel添加内容；
+                        for (int i = 0; i < dt.Rows.Count; i++)
+                        {
+                            iRow = iSheet.CreateRow(i + 1);   //NPOI和DataTable计算行数时相差1；
+                            for (int j = 0; j < dt.Rows[i].ItemArray.Length; j++)
+                            {
+                                iRow.CreateCell(j).SetCellValue(dt.Rows[i][j].ToString());  //只能实现文本类型；
+                            }
+                        }
+                        wb.Close();
+                    }
+                    catch (Exception e)
+                    {
+                        await sw.WriteLineAsync(e.ToString());
+                    }
+                }
             }
         }
-        private async void writeToMySQL(DataTable dt)
+        private async void writeToMySQL()
         {
             using (MySqlConnection MySqlConn = new MySqlConnection(String.Join(';', connString) + ";AllowLoadLocalInfile=true"))
             {
-                await MySqlConn.OpenAsync();
-                MySqlBulkCopy MySqlBC = new MySqlBulkCopy(MySqlConn);
-                MySqlBC.DestinationTableName = "IP_RELATIONSHIP";
-                MySqlBulkCopyResult result = await MySqlBC.WriteToServerAsync(dt);
                 using (StreamWriter sw = new StreamWriter(logName))
                 {
-                    if (result.Warnings.Count != 0)
+                    try
                     {
-                        foreach (var w in result.Warnings)
-                            sw.WriteLine(w.ToString());
+                        await MySqlConn.OpenAsync();
+                        MySqlBulkCopy MySqlBC = new MySqlBulkCopy(MySqlConn);
+                        MySqlBC.DestinationTableName = "IP_RELATIONSHIP";
+                        MySqlBulkCopyResult result = await MySqlBC.WriteToServerAsync(dt);
+                        if (result.Warnings.Count != 0)
+                        {
+                            foreach (var w in result.Warnings)
+                            {
+                                await sw.WriteLineAsync(w.ToString());
+                            }
+                        }
+                        await sw.WriteLineAsync("To MySQL write " + result.RowsInserted + " lines.");
                     }
-                    sw.WriteLine("To MySQL write " + result.RowsInserted + " lines.");
+                    catch (Exception e)
+                    {
+                        await sw.WriteLineAsync(e.ToString());
+                    }
                 }
             }
         }
