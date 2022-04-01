@@ -83,6 +83,8 @@ namespace TableTransfer
                 {
                     using (FileStream fs = new FileStream(xlsxName, FileMode.Open, FileAccess.Read))
                     {
+                        //避免产生错误；
+                        fs.Position = 0;
                         IWorkbook wb = new XSSFWorkbook(fs);
                         ISheet iSheet = wb.GetSheetAt(0);
                         //为DataTable添加表头：
@@ -136,7 +138,7 @@ namespace TableTransfer
         private void writeToExcel()
         {
             using (FileStream fs = new FileStream(xlsxName, FileMode.OpenOrCreate, FileAccess.Write))
-            {  
+            {
                 using (StreamWriter sw = new StreamWriter(logName, true))
                 {
                     try
