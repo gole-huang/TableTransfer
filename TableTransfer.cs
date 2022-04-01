@@ -21,6 +21,7 @@ namespace TableTransfer
         private string xlsxName; //Excel文件名；
         private string[] connString = new string[5]; //MySQL连接字符串；
         private DataTable dt;
+        private DataSet ds;
         public TableTransfer(string CFGFile, string XLSXFile)
         {
             cfgName = CFGFile;
@@ -52,7 +53,8 @@ namespace TableTransfer
                 }
             }
             xlsxName = XLSXFile;
-            dt = new DataTable();
+            //dt = new DataTable();
+            ds = new DataSet();
         }
         private static object GetValueType(ICell iCell)
         {   //获取
@@ -85,29 +87,35 @@ namespace TableTransfer
                     {
                         //避免产生错误；
                         fs.Position = 0;
+                        //ds.Tables.Add();
                         IWorkbook wb = new XSSFWorkbook(fs);
-                        ISheet iSheet = wb.GetSheetAt(0);
-                        //为DataTable添加表头：
-                        IRow iRow = iSheet.GetRow(iSheet.FirstRowNum);
-                        for (int i = 0; i < iRow.LastCellNum; i++)
-                        {
-                            if (GetValueType(iRow.GetCell(i)) == null)
-                                dt.Columns.Add(new DataColumn("Column" + i.ToString()));
-                            dt.Columns.Add(new DataColumn(GetValueType(iRow.GetCell(i)).ToString()));
-                        }
-                        sw.WriteLine(iRow.LastCellNum.ToString() + " cells had been readed.");
-                        //为DataTable添加表内容：
-                        for (int i = iSheet.FirstRowNum + 1; i <= iSheet.LastRowNum; i++)
-                        {
+                        //读取Excel的表数
+                        for (int sheetNum = 0; sheetNum < wb.NumberOfSheets; sheetNum++)
+                        { //
 
-                            iRow = iSheet.GetRow(i);
-                            DataRow dr = dt.NewRow();
-                            for (int j = 0; j < iRow.LastCellNum; j++)
-                                dr[j] = GetValueType(iRow.GetCell(j));
-                            dt.Rows.Add(dr);
+                            ISheet iSheet = wb.GetSheetAt(sheetNum);
+                            //为DataTable添加表头：
+                            IRow iRow = iSheet.GetRow(iSheet.FirstRowNum);
+                            for (int cellNum = 0; cellNum < iRow.LastCellNum; cellNum++)
+                            {
+                                if (GetValueType(iRow.GetCell(cellNum)) == null)
+                                    dt.Columns.Add(new DataColumn("Column" + cellNum.ToString()));
+                                dt.Columns.Add(new DataColumn(GetValueType(iRow.GetCell(cellNum)).ToString()));
+                            }
+                            sw.WriteLine(iRow.LastCellNum.ToString() + " cells had been readed.");
+                            //为DataTable添加表内容：
+                            for (int i = iSheet.FirstRowNum + 1; i <= iSheet.LastRowNum; i++)
+                            {
+
+                                iRow = iSheet.GetRow(i);
+                                DataRow dr = dt.NewRow();
+                                for (int j = 0; j < iRow.LastCellNum; j++)
+                                    dr[j] = GetValueType(iRow.GetCell(j));
+                                dt.Rows.Add(dr);
+                            }
+                            wb.Close();
+                            sw.WriteLine(iSheet.LastRowNum.ToString() + " rows had been readed.");
                         }
-                        wb.Close();
-                        sw.WriteLine(iSheet.LastRowNum.ToString() + " rows had been readed.");
                     }
                 }
                 catch (Exception e)
