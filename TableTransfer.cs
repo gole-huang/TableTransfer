@@ -20,7 +20,7 @@ namespace TableTransfer
         private const string logName = "OP.log"; //访问日志；
         private string xlsxName; //Excel文件名；
         private string[] connString = new string[5]; //MySQL连接字符串；
-        private DataTable dt;
+        //private DataTable dt;
         private DataSet ds;
         public TableTransfer(string CFGFile, string XLSXFile)
         {
@@ -87,12 +87,11 @@ namespace TableTransfer
                     {
                         //避免产生错误；
                         fs.Position = 0;
-                        //ds.Tables.Add();
                         IWorkbook wb = new XSSFWorkbook(fs);
                         //读取Excel的表数
                         for (int sheetNum = 0; sheetNum < wb.NumberOfSheets; sheetNum++)
-                        { //
-
+                        {
+                            DataTable dt=new DataTable();
                             ISheet iSheet = wb.GetSheetAt(sheetNum);
                             //为DataTable添加表头：
                             IRow iRow = iSheet.GetRow(iSheet.FirstRowNum);
@@ -114,6 +113,7 @@ namespace TableTransfer
                                 dt.Rows.Add(dr);
                             }
                             wb.Close();
+                            ds.Tables.Add(dt);
                             sw.WriteLine(iSheet.LastRowNum.ToString() + " rows had been readed.");
                         }
                     }
@@ -122,7 +122,6 @@ namespace TableTransfer
                 {
                     sw.WriteLine("readFromExcel(): " + e.ToString());
                 }
-
             }
         }
         private void readFromMySQL()
