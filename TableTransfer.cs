@@ -87,8 +87,6 @@ namespace TableTransfer
                     {
                         //避免产生错误；
                         fs.Position = 0;
-                        DataTable dt = new DataTable();
-                        //ds.Tables.Add();
                         IWorkbook wb = new XSSFWorkbook(fs);
                         //读取Excel的表数
                         for (int sheetNum = 0; sheetNum < wb.NumberOfSheets; sheetNum++)
@@ -128,7 +126,8 @@ namespace TableTransfer
         }
         private void readFromMySQL()
         {
-            string MySqlCmd = "Select OLD_IP , NEW_IP , NEW_MASK , NEW_GW , NEW_DNS from IP_RELATIONSHIP";
+            //string MySqlCmd = "Select OLD_IP , NEW_IP , NEW_MASK , NEW_GW , NEW_DNS from IP_RELATIONSHIP";
+            string MySqlCmd ="Select * from IP_RELATIONSHIP";
             using (StreamWriter sw = new StreamWriter(logName, true))
             {
                 try
