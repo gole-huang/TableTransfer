@@ -20,8 +20,7 @@ namespace TableTransfer
         private const string logName = "OP.log"; //访问日志；
         private string xlsxName; //Excel文件名；
         private string[] connString = new string[5]; //MySQL连接字符串；
-        //private DataTable dt;
-        private DataSet ds;
+        private DataTable dt;
         public TableTransfer(string CFGFile, string XLSXFile)
         {
             cfgName = CFGFile;
@@ -53,8 +52,7 @@ namespace TableTransfer
                 }
             }
             xlsxName = XLSXFile;
-            //dt = new DataTable();
-            ds = new DataSet();
+            dt = new DataTable();
         }
         private static object GetValueType(ICell iCell)
         {   //获取
@@ -91,7 +89,6 @@ namespace TableTransfer
                         //读取Excel的表数
                         for (int sheetNum = 0; sheetNum < wb.NumberOfSheets; sheetNum++)
                         {
-                            DataTable dt=new DataTable();
                             ISheet iSheet = wb.GetSheetAt(sheetNum);
                             //为DataTable添加表头：
                             IRow iRow = iSheet.GetRow(iSheet.FirstRowNum);
@@ -113,7 +110,6 @@ namespace TableTransfer
                                 dt.Rows.Add(dr);
                             }
                             wb.Close();
-                            ds.Tables.Add(dt);  //往数据集中添加新表；
                             sw.WriteLine(iSheet.LastRowNum.ToString() + " rows had been readed.");
                         }
                     }
@@ -126,8 +122,8 @@ namespace TableTransfer
         }
         private void readFromMySQL()
         {
-            //string MySqlCmd = "Select OLD_IP , NEW_IP , NEW_MASK , NEW_GW , NEW_DNS from IP_RELATIONSHIP";
-            string MySqlCmd ="Select * from IP_RELATIONSHIP";
+            string MySqlCmd = "Select OLD_IP , NEW_IP , NEW_MASK , NEW_GW , NEW_DNS from IP_RELATIONSHIP";
+            //string MySqlCmd ="Select * from IP_RELATIONSHIP";
             using (StreamWriter sw = new StreamWriter(logName, true))
             {
                 try
