@@ -87,6 +87,8 @@ namespace TableTransfer
                     {
                         //避免产生错误；
                         fs.Position = 0;
+                        DataTable dt = new DataTable();
+                        //ds.Tables.Add();
                         IWorkbook wb = new XSSFWorkbook(fs);
                         //读取Excel的表数
                         for (int sheetNum = 0; sheetNum < wb.NumberOfSheets; sheetNum++)
@@ -113,7 +115,7 @@ namespace TableTransfer
                                 dt.Rows.Add(dr);
                             }
                             wb.Close();
-                            ds.Tables.Add(dt);
+                            ds.Tables.Add(dt);  //往数据集中添加新表；
                             sw.WriteLine(iSheet.LastRowNum.ToString() + " rows had been readed.");
                         }
                     }
