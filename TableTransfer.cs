@@ -16,6 +16,7 @@ namespace TableTransfer
         private const int DB_User = 2;
         private const int DB_pwd = 3;
         private const int DB_Database = 4;
+        private string tableName;
         private string cfgName;    //配置文件；
         private const string logName = "OP.log"; //访问日志；
         private string xlsxName; //Excel文件名；
@@ -44,7 +45,10 @@ namespace TableTransfer
                             connString[DB_pwd] = "pwd=" + sr.ReadLine();
                             break;
                         case "[DatabaseName]":
-                            connString[DB_Database] = "Database=" + sr.ReadLine();
+                            connString[DB_Database] = "Database=" + sr.ReadLine().ToUpper();
+                            break;
+                        case "[TableName]":
+                            tableName = sr.ReadLine().ToUpper();
                             break;
                         default:
                             break;
@@ -98,7 +102,7 @@ namespace TableTransfer
                                     dt.Columns.Add(new DataColumn("Column" + cellNum.ToString()));
                                 dt.Columns.Add(new DataColumn(GetValueType(iRow.GetCell(cellNum)).ToString()));
                             }
-                            sw.WriteLine(iRow.LastCellNum.ToString() + " cells had been readed.");
+                            sw.WriteLine(iRow.LastCellNum.ToString() + " cells are readed from Excel.");
                             //为DataTable添加表内容：
                             for (int i = iSheet.FirstRowNum + 1; i <= iSheet.LastRowNum; i++)
                             {
@@ -110,7 +114,7 @@ namespace TableTransfer
                                 dt.Rows.Add(dr);
                             }
                             wb.Close();
-                            sw.WriteLine(iSheet.LastRowNum.ToString() + " rows had been readed.");
+                            sw.WriteLine(iSheet.LastRowNum.ToString() + " rows are readed from Excel.");
                         }
                     }
                 }
@@ -122,15 +126,15 @@ namespace TableTransfer
         }
         private void readFromMySQL()
         {
-            string MySqlCmd = "Select OLD_IP , NEW_IP , NEW_MASK , NEW_GW , NEW_DNS from IP_RELATIONSHIP";
-            //string MySqlCmd ="Select * from IP_RELATIONSHIP";
+            //string MySqlCmd = "Select OLD_IP , NEW_IP , NEW_MASK , NEW_GW , NEW_DNS from " + tableName;
+            string MySqlCmd = "Select * from " + tableName;
             using (StreamWriter sw = new StreamWriter(logName, true))
             {
                 try
                 {
                     using (MySqlDataAdapter dbAdapter = new MySqlDataAdapter(MySqlCmd, String.Join(";", connString)))
                     {
-                        sw.WriteLine("From MySQL read " + dbAdapter.Fill(dt) + " lines.");
+                        sw.WriteLine(dbAdapter.Fill(dt) + " rows are readed from MySQL.");
                     }
                 }
                 catch (Exception e)
@@ -148,7 +152,7 @@ namespace TableTransfer
                     try
                     {
                         IWorkbook wb = new XSSFWorkbook();
-                        ISheet iSheet = wb.CreateSheet("IP_RELATIONSHIP");  //为Excel添加表头；
+                        ISheet iSheet = wb.CreateSheet(tableName);  //为Excel添加表头；
                         IRow iRow = iSheet.CreateRow(0);
                         for (int i = 0; i < dt.Columns.Count; i++)
                         {
@@ -164,6 +168,7 @@ namespace TableTransfer
                             }
                         }
                         wb.Write(fs);
+                        sw.WriteLine(iSheet.LastRowNum.ToString() + " rows are writed to Excel.");
                         wb.Close();
                     }
                     catch (Exception e)
@@ -175,6 +180,7 @@ namespace TableTransfer
         }
         private void writeToMySQL()
         {
+            //Confirm MySql "SHOW GLOBAL VARIABLES LIKE 'local_infile'" is ON ; Otherwise "SET GLOBAL local_infile = 'ON'";
             using (MySqlConnection MySqlConn = new MySqlConnection(String.Join(";", connString) + ";AllowLoadLocalInfile=true"))
             {
                 using (StreamWriter sw = new StreamWriter(logName, true))
@@ -183,7 +189,7 @@ namespace TableTransfer
                     {
                         MySqlConn.Open();
                         MySqlBulkCopy MySqlBC = new MySqlBulkCopy(MySqlConn);
-                        MySqlBC.DestinationTableName = "IP_RELATIONSHIP";
+                        MySqlBC.DestinationTableName = tableName;
                         MySqlBulkCopyResult result = MySqlBC.WriteToServer(dt);
                         if (result.Warnings.Count != 0)
                         {
@@ -192,7 +198,7 @@ namespace TableTransfer
                                 sw.WriteLine(w.ToString());
                             }
                         }
-                        sw.WriteLine(result.RowsInserted + " lines had been written to MySQL.");
+                        sw.WriteLine(result.RowsInserted + " rows are written to MySQL.");
                     }
                     catch (Exception e)
                     {
